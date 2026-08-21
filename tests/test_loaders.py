@@ -3,8 +3,14 @@
 import pytest
 
 from jobs_scrape.loaders import (
-    clean_text, html_to_text, normalize_country, parse_salary,
-    parse_workload, slugify, to_int, to_iso_date,
+    clean_text,
+    html_to_text,
+    normalize_country,
+    parse_salary,
+    parse_workload,
+    slugify,
+    to_int,
+    to_iso_date,
 )
 
 

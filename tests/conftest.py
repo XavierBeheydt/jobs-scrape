@@ -1,4 +1,5 @@
 import sqlite3
+
 import pytest
 
 from jobs_scrape import storage

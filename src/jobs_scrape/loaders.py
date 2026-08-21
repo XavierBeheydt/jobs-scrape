@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from dateutil import parser as date_parser
 from w3lib.html import remove_tags, replace_entities
@@ -258,7 +258,7 @@ def normalize_country(value: str | None) -> str | None:
 
 def utc_now_iso() -> str:
     """Horodatage UTC courant, en ISO 8601 avec suffixe ``Z``."""
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def slugify(value: str) -> str:

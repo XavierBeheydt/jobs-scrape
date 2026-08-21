@@ -18,7 +18,8 @@ from jobs_scrape.storage import row_to_dict
 # Une correspondance dans le titre pese bien plus qu'une occurrence noyee dans
 # une description de trois mille signes : sans ce reglage, une annonce qui cite
 # « Python » en passant devancerait un poste intitule « Developpeur Python ».
-_BM25_WEIGHTS = (10.0, 3.0, 4.0, 1.0, 6.0, 8.0)  # title, company, city, description, keywords, skills
+# title, company, city, description, keywords, skills
+_BM25_WEIGHTS = (10.0, 3.0, 4.0, 1.0, 6.0, 8.0)
 
 _FTS_SPECIALS = re.compile(r'[":^*(){}\[\]]')
 

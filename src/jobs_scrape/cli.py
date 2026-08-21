@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from pathlib import Path
 
 from jobs_scrape import __version__
 
@@ -31,12 +30,12 @@ def _connect(settings=None):
 
 def _table(rows: list[list[str]], headers: list[str]) -> str:
     """Rendu tabulaire aligne, sans dependance de mise en forme."""
-    columns = list(zip(*([headers] + rows))) if rows else [[h] for h in headers]
+    columns = list(zip(*([headers] + rows), strict=True)) if rows else [[h] for h in headers]
     widths = [max(len(str(cell)) for cell in column) for column in columns]
-    line = "  ".join(h.ljust(w) for h, w in zip(headers, widths)).rstrip()
+    line = "  ".join(h.ljust(w) for h, w in zip(headers, widths, strict=True)).rstrip()
     out = [line, "  ".join("-" * w for w in widths).rstrip()]
     for row in rows:
-        out.append("  ".join(str(c).ljust(w) for c, w in zip(row, widths)).rstrip())
+        out.append("  ".join(str(c).ljust(w) for c, w in zip(row, widths, strict=True)).rstrip())
     return "\n".join(out)
 
 
@@ -324,8 +323,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("search", help="chercher dans les offres collectees")
     p.add_argument("query", nargs="?", default=None,
                    help="termes ; omis, affiche les plus recentes")
-    p.add_argument("--source"); p.add_argument("--region", help="canton CH ou departement FR")
-    p.add_argument("--city"); p.add_argument("--company"); p.add_argument("--country")
+    p.add_argument("--source")
+    p.add_argument("--region", help="canton CH ou departement FR")
+    p.add_argument("--city")
+    p.add_argument("--company")
+    p.add_argument("--country")
     p.add_argument("--contract-type")
     p.add_argument("--skill", action="append", default=[], help="repetable, cumulatif")
     p.add_argument("--workload-min", type=int, help="taux d'activite minimal, en %%")
@@ -338,7 +340,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--field", default="skills",
                    choices=["skills", "keywords", "languages", "occupations"])
     p.add_argument("--top", type=int, default=30)
-    p.add_argument("--source"); p.add_argument("--region")
+    p.add_argument("--source")
+    p.add_argument("--region")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_terms)
 

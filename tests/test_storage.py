@@ -39,10 +39,11 @@ def test_index_fts_suit_les_suppressions(db):
     """L'index est tenu par declencheurs : une suppression doit s'y refleter."""
     storage.upsert(db, make_job())
     db.commit()
-    assert db.execute("SELECT COUNT(*) c FROM jobs_fts WHERE jobs_fts MATCH 'python'").fetchone()["c"] == 1
+    matches = "SELECT COUNT(*) c FROM jobs_fts WHERE jobs_fts MATCH 'python'"
+    assert db.execute(matches).fetchone()["c"] == 1
     db.execute("DELETE FROM jobs")
     db.commit()
-    assert db.execute("SELECT COUNT(*) c FROM jobs_fts WHERE jobs_fts MATCH 'python'").fetchone()["c"] == 0
+    assert db.execute(matches).fetchone()["c"] == 0
 
 
 def test_counts_by_source(db):
