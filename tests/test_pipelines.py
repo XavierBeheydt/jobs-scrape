@@ -94,3 +94,44 @@ def test_un_enrichisseur_defaillant_ne_bloque_pas(spider):
     job = make_job()
     assert pipeline.process_item(job, spider) is job
     assert spider.stats["jobs/enrich_failed/casse"] == 1
+
+
+def test_html_spider_s_arrete_sur_une_page_vide():
+    """Une page de resultats sans annonce marque la fin : inutile d'insister."""
+    from jobs_scrape.spiders import HtmlJobSpider
+    from jobs_scrape.testing import html_response
+
+    class Spider(HtmlJobSpider):
+        name = "demo"
+        detail_url_re = r"/offre/"
+        next_page_css = "a.next::attr(href)"
+
+    spider = Spider()
+    vide = html_response("https://x.test/liste?page=9", '<a class="next" href="?page=10">→</a>')
+    assert list(spider.parse_listing(vide)) == []
+
+    pleine = html_response(
+        "https://x.test/liste?page=1",
+        '<a href="/offre/1">a</a><a class="next" href="?page=2">→</a>',
+    )
+    urls = [r.url for r in spider.parse_listing(pleine)]
+    assert "https://x.test/offre/1" in urls
+    assert "https://x.test/liste?page=2" in urls
+
+
+def test_next_page_url_redefinissable():
+    """Les sites qui paginent par parametre d'URL redefinissent ce seul point."""
+    from jobs_scrape.spiders import HtmlJobSpider
+    from jobs_scrape.testing import html_response
+
+    class Spider(HtmlJobSpider):
+        name = "demo2"
+        detail_url_re = r"/offre/"
+
+        def next_page_url(self, response, page):
+            return f"https://x.test/liste?page={page + 1}"
+
+    spider = Spider()
+    page = html_response("https://x.test/liste", '<a href="/offre/1">a</a>')
+    urls = [r.url for r in spider.parse_listing(page)]
+    assert "https://x.test/liste?page=2" in urls

@@ -53,6 +53,19 @@ class HtmlJobSpider(BaseJobSpider):
         """Dernier filtre avant emission. Permet d'ecarter les annonces expirees."""
         return bool(fields.get("title"))
 
+    def next_page_url(self, response: Response, page: int) -> str | None:
+        """URL de la page suivante, ou ``None`` pour s'arreter.
+
+        Par defaut on suit le lien designe par ``next_page_css``. Beaucoup de
+        sites n'exposent pas de lien « suivant » exploitable et paginent par un
+        simple parametre d'URL : ces modules-la redefinissent cette methode
+        plutot que de reimplementer le parcours complet.
+        """
+        if self.next_page_css:
+            href = response.css(self.next_page_css).get()
+            return response.urljoin(href) if href else None
+        return None
+
     # -- mecanique ---------------------------------------------------------
 
     async def start(self):
@@ -88,14 +101,17 @@ class HtmlJobSpider(BaseJobSpider):
             return
         if self.max_pages is not None and page >= self.max_pages:
             return
-        if self.next_page_css:
-            next_href = response.css(self.next_page_css).get()
-            if next_href:
-                yield scrapy.Request(
-                    response.urljoin(next_href),
-                    callback=self.parse_listing,
-                    meta={"page": page + 1},
-                )
+        if not seen:
+            # Page sans la moindre annonce : on est au-dela du dernier resultat.
+            # Continuer a paginer ne ferait que solliciter le site pour rien.
+            self.logger.debug("aucune annonce sur %s : fin de la pagination", response.url)
+            return
+
+        next_url = self.next_page_url(response, page)
+        if next_url:
+            yield scrapy.Request(
+                next_url, callback=self.parse_listing, meta={"page": page + 1}
+            )
 
     def parse_detail(self, response: Response, **kwargs) -> JobItem | None:
         if self.limit_reached():
