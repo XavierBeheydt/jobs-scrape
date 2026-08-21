@@ -16,17 +16,18 @@ from __future__ import annotations
 
 import logging
 
-from scrapy.interfaces import ISpiderLoader
-from zope.interface import implementer
-
 from jobs_scrape import registry
 
 logger = logging.getLogger(__name__)
 
 
-@implementer(ISpiderLoader)
 class RegistrySpiderLoader:
-    """Expose a Scrapy les spiders fournis par les modules installes."""
+    """Expose a Scrapy les spiders fournis par les modules installes.
+
+    Implemente ``ISpiderLoader`` par conformite de signature. On evite le
+    decorateur ``@implementer`` : ``scrapy.interfaces`` est deprecie depuis
+    Scrapy 2.18, et le framework se contente du duck typing.
+    """
 
     def __init__(self, settings=None):
         self.settings = settings
