@@ -73,8 +73,9 @@ class ModuleSpec:
         if is_repository and not url.startswith("git+"):
             url = f"git+{url}"
 
-        # Une reference deja presente dans l'URL prime sur le champ ``ref``.
-        if self.ref and "@" not in url.rsplit("/", 1)[-1]:
+        # La reference ne s'applique qu'a un depot : un nom de paquet publie
+        # sur un index n'a pas de branche.
+        if is_repository and self.ref and "@" not in url.rsplit("/", 1)[-1]:
             url = f"{url}@{self.ref}"
         return url
 
