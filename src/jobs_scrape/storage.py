@@ -31,7 +31,10 @@ COLUMNS: tuple[str, ...] = tuple(
     name for name in FIELD_NAMES if name != "scraped_at"
 ) + ("first_seen_at", "last_seen_at")
 
-_TEXT_COLUMNS = ("title", "company", "description", "keywords", "skills")
+# Colonnes versees a l'index plein-texte. ``city`` en fait partie a dessein :
+# on cherche un emploi par « quoi ET ou », et l'utilisateur tape les deux dans
+# le meme champ. L'exclure obligerait a passer la ville en filtre explicite.
+_TEXT_COLUMNS = ("title", "company", "city", "description", "keywords", "skills")
 
 SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS jobs (
