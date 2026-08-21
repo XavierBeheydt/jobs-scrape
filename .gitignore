@@ -7,7 +7,9 @@ dist/
 build/
 
 # Donnees collectees : jamais versionnees
-data/
+# Ancre a la racine : un simple `data/` matcherait aussi les donnees
+# embarquees dans le paquet (src/*/data/), qui doivent etre versionnees.
+/data/
 *.jsonl
 *.db
 *.db-journal
