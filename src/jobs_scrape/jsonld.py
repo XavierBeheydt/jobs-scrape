@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from typing import Any
 
 from jobs_scrape.loaders import (
@@ -32,14 +33,48 @@ _JSONLD_XPATH = '//script[@type="application/ld+json"]/text()'
 
 # Vocabulaire schema.org des types de contrat, ramene a nos valeurs internes.
 _EMPLOYMENT_TYPES = {
-    "FULL_TIME": "full_time",
-    "PART_TIME": "part_time",
-    "CONTRACTOR": "contractor",
-    "TEMPORARY": "temporary",
-    "INTERN": "internship",
-    "VOLUNTEER": "volunteer",
-    "PER_DIEM": "per_diem",
-    "OTHER": "other",
+    "full_time": "full_time",
+    "part_time": "part_time",
+    "contractor": "contractor",
+    "temporary": "temporary",
+    "intern": "internship",
+    "volunteer": "volunteer",
+    "per_diem": "per_diem",
+    "other": "other",
+}
+
+# En pratique, les sites suisses et francais ignorent largement le vocabulaire
+# anglais de schema.org et y placent leur propre libelle. jobup.ch annonce ainsi
+# « duree indeterminee ». Sans ces equivalences, chaque site produirait sa
+# propre valeur et le champ deviendrait inexploitable pour filtrer.
+_EMPLOYMENT_ALIASES = {
+    "duree indeterminee": "permanent",
+    "contrat a duree indeterminee": "permanent",
+    "cdi": "permanent",
+    "unbefristet": "permanent",
+    "festanstellung": "permanent",
+    "permanent": "permanent",
+    "duree determinee": "fixed_term",
+    "contrat a duree determinee": "fixed_term",
+    "cdd": "fixed_term",
+    "befristet": "fixed_term",
+    "temps plein": "full_time",
+    "plein temps": "full_time",
+    "vollzeit": "full_time",
+    "temps partiel": "part_time",
+    "teilzeit": "part_time",
+    "stage": "internship",
+    "praktikum": "internship",
+    "internship": "internship",
+    "apprentissage": "apprenticeship",
+    "lehrstelle": "apprenticeship",
+    "apprentissage dual": "apprenticeship",
+    "temporaire": "temporary",
+    "interim": "temporary",
+    "mission temporaire": "temporary",
+    "freelance": "contractor",
+    "independant": "contractor",
+    "selbstandig": "contractor",
 }
 
 
@@ -168,13 +203,32 @@ def _parse_salary(posting: dict) -> dict[str, Any]:
     return {"salary_min": low, "salary_max": high, "salary_currency": currency}
 
 
+def _normalize_key(value: str) -> str:
+    """Cle de comparaison : minuscules, sans accent, separateurs unifies."""
+    text = unicodedata.normalize("NFKD", str(value).strip().lower())
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    return re.sub(r"[\s_-]+", " ", text).strip()
+
+
 def _parse_employment_type(posting: dict) -> str | None:
-    values = [str(v).strip().upper().replace("-", "_").replace(" ", "_")
-              for v in _as_list(posting.get("employmentType")) if v]
-    for value in values:
-        if value in _EMPLOYMENT_TYPES:
-            return _EMPLOYMENT_TYPES[value]
-    return clean_text(values[0].lower()) if values else None
+    """Ramene un type de contrat a une valeur interne stable.
+
+    On interroge d'abord le vocabulaire schema.org, puis les libelles francais
+    et allemands rencontres sur les sites suisses. En dernier recours on rend la
+    valeur normalisee telle quelle : mieux vaut un libelle brut exploitable a
+    l'oeil qu'un champ vide.
+    """
+    for raw in _as_list(posting.get("employmentType")):
+        if not raw:
+            continue
+        key = _normalize_key(raw)
+        if key in _EMPLOYMENT_ALIASES:
+            return _EMPLOYMENT_ALIASES[key]
+        underscored = key.replace(" ", "_")
+        if underscored in _EMPLOYMENT_TYPES:
+            return _EMPLOYMENT_TYPES[underscored]
+        return underscored or None
+    return None
 
 
 def _parse_identifier(posting: dict) -> str | None:
