@@ -1,0 +1,14 @@
+# Modules de jobs-scrape.
+#
+#   jobs-scrape modules list     etat declare / installe
+#   jobs-scrape modules sync     installe les modules actives
+#
+# Champs :
+#   repo      URL git. git+ssh:// pour un depot prive (auth SSH de gh reutilisee)
+#   path      chemin local, prioritaire sur repo -- pour developper un module
+#   ref       branche ou tag (defaut : main)
+#   enabled   false pour livrer un module sans l'activer
+#   config    options passees au module
+#   note      raison d'une desactivation, affichee par la CLI
+
+modules: []
