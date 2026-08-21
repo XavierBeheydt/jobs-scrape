@@ -52,15 +52,31 @@ class ModuleSpec:
         return bool(self.path)
 
     def requirement(self) -> str:
-        """Specification d'installation comprise par ``uv pip install``."""
+        """Specification d'installation comprise par ``uv pip install``.
+
+        Une URL de depot doit porter le prefixe ``git+``, faute de quoi pip la
+        prend pour une archive a telecharger. On le pose donc soi-meme plutot
+        que d'imposer a l'utilisateur de l'ecrire dans le manifeste.
+        """
         if self.path:
             return str(Path(self.path).expanduser())
         if not self.repo:
             raise ValueError(f"module '{self.name}' : ni 'repo' ni 'path' renseigne")
+
         url = self.repo
-        if not url.startswith(("git+", "http", "/", ".")):
+        # Forme abregee de GitHub : git@github.com:utilisateur/depot.git
+        if url.startswith("git@") and ":" in url:
+            host, _, repo_path = url[4:].partition(":")
+            url = f"ssh://git@{host}/{repo_path}"
+
+        is_repository = url.endswith(".git") or url.startswith(("ssh://", "git://"))
+        if is_repository and not url.startswith("git+"):
             url = f"git+{url}"
-        return f"{url}@{self.ref}" if self.ref and "@" not in url.rsplit("/", 1)[-1] else url
+
+        # Une reference deja presente dans l'URL prime sur le champ ``ref``.
+        if self.ref and "@" not in url.rsplit("/", 1)[-1]:
+            url = f"{url}@{self.ref}"
+        return url
 
 
 def load_manifest(path: str | Path = DEFAULT_MANIFEST) -> list[ModuleSpec]:
