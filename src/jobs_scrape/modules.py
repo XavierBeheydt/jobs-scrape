@@ -47,6 +47,9 @@ class ModuleSpec:
 
     note: str = ""
 
+    last_error: str = ""
+    """Renseigne par :func:`install` en cas d'echec, pour l'afficher a l'utilisateur."""
+
     @property
     def is_local(self) -> bool:
         return bool(self.path)
@@ -147,11 +150,14 @@ def install(spec: ModuleSpec, *, persist: bool = False, dry_run: bool = False) -
     logger.info("installation de '%s' depuis %s", spec.name, requirement)
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
-        logger.error(
-            "echec de l'installation de '%s' :\n%s",
-            spec.name, (result.stderr or result.stdout).strip(),
-        )
+        # Le detail est renvoye a l'appelant, pas seulement journalise : un
+        # echec reseau qui n'affiche que « voir le journal » laisse
+        # l'utilisateur sans rien -- alors qu'il suffit souvent de relancer.
+        detail = (result.stderr or result.stdout).strip().splitlines()
+        spec.last_error = " ".join(line.strip() for line in detail[-4:]) or "cause inconnue"
+        logger.error("echec de l'installation de '%s' : %s", spec.name, spec.last_error)
         return False
+    spec.last_error = ""
     return True
 
 
@@ -173,6 +179,7 @@ def sync(
         return 0, 0
 
     succeeded = failed = 0
+    errors: list[str] = []
     for spec in specs:
         if only and spec.name not in only:
             continue
@@ -186,7 +193,20 @@ def sync(
                 print(f"  + {spec.name}")
         else:
             failed += 1
-            print(f"  ! {spec.name} : echec (voir le journal)", file=sys.stderr)
+            print(f"  ! {spec.name} : {spec.last_error[:160]}", file=sys.stderr)
+            errors.append(spec.name)
+
+    if errors:
+        # Les echecs les plus frequents sont transitoires -- un depot momentanement
+        # injoignable, un telechargement interrompu. On le dit, parce que la
+        # reaction utile est de relancer, pas de chercher une cause profonde.
+        print(
+            f"\n  Modules non installes : {', '.join(errors)}.\n"
+            f"  Ces echecs sont souvent passagers (reseau, depot momentanement "
+            f"injoignable).\n"
+            f"  Relancez : jobs-scrape modules sync --only {' --only '.join(errors)}",
+            file=sys.stderr,
+        )
 
     if not dry_run:
         from jobs_scrape import registry

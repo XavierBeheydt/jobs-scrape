@@ -68,3 +68,28 @@ def test_cles_inconnues_du_manifeste_sont_ignorees(tmp_path):
     path = tmp_path / "m.yml"
     path.write_text(yaml.safe_dump({"modules": [{"name": "x", "path": ".", "typo": 1}]}))
     assert modules.load_manifest(path)[0].name == "x"
+
+
+def test_l_echec_d_installation_porte_sa_cause(monkeypatch, capsys, tmp_path):
+    """Un « voir le journal » ne laisse rien a l'utilisateur.
+
+    Les echecs les plus frequents sont transitoires : la sortie doit nommer le
+    module, montrer la cause, et donner la commande qui relance ce module-la.
+    """
+    import subprocess
+
+    manifest = tmp_path / "m.yml"
+    manifest.write_text(yaml.safe_dump({"modules": [
+        {"name": "cassé", "repo": "https://github.com/u/absent.git"},
+    ]}), encoding="utf-8")
+
+    def echec(*args, **kwargs):
+        return subprocess.CompletedProcess(args, 1, stdout="", stderr="fatal: dépôt introuvable")
+
+    monkeypatch.setattr(subprocess, "run", echec)
+    ok, failed = modules.sync(manifest)
+
+    assert (ok, failed) == (0, 1)
+    sortie = capsys.readouterr().err
+    assert "dépôt introuvable" in sortie          # la cause reelle
+    assert "--only cassé" in sortie               # la commande qui relance
