@@ -23,7 +23,10 @@ def test_champs_principaux(fields):
     assert fields["title"] == "Team Lead – Développement/Intégration"
     assert fields["company"] == "FHV Informatique"
     assert fields["external_id"] == "2acc13b6-cd64-4353-9cd7-892faf540f74"
-    assert fields["posted_at"] == "2026-07-08"
+    # Valeur brute : "2026-08-07T02:02:37+02:00", soit le 7 aout.
+    # Cette assertion figeait auparavant 2026-07-08, resultat d'un defaut de
+    # lecture des dates ISO -- un mois d'ecart, passe inapercu.
+    assert fields["posted_at"] == "2026-08-07"
 
 
 def test_localisation(fields):
