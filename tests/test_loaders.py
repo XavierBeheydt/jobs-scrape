@@ -72,3 +72,20 @@ def test_normalize_country(raw, expected):
 def test_to_int_et_slugify():
     assert to_int("1 234") == 1234
     assert slugify("Développeur Full-Stack (H/F)") == "developpeur-full-stack-h-f"
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("47.405", 47.405),      # latitude : trois decimales, pas un separateur de milliers
+    ("8.484", 8.484),
+    ("47.2", 47.2),
+    ("-1.5", -1.5),
+    ("80'000", 80000.0),     # apostrophe suisse : bien un separateur de milliers
+    ("1 234", 1234.0),
+    ("55,5", 55.5),
+    ("CHF 1'250.50", 1250.50),
+])
+def test_to_float_lit_les_coordonnees_sans_les_deformer(raw, expected):
+    """Regression : l'heuristique monetaire transformait 47.405 en 47405."""
+    from jobs_scrape.loaders import to_float
+
+    assert to_float(raw) == pytest.approx(expected)
