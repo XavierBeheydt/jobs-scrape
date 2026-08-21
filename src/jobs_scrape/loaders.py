@@ -160,6 +160,15 @@ def parse_workload(value: object) -> tuple[int | None, int | None]:
     return min(numbers), max(numbers)
 
 
+# Indices qu'un texte parle bien de remuneration. Sans devise ni l'un de ces
+# mots, on refuse d'interpreter les nombres qu'il contient.
+_SALARY_KEYWORDS = re.compile(
+    r"\bsalaire|\bsalarial|\bremuneration|\brémunération|\bbrut\b|\bnet\b"
+    r"|\bannuel|\bmensuel|\bpar an\b|\bpar mois\b"
+    r"|\bgehalt|\blohn\b|\bjahresgehalt|\bsalary\b|\bcompensation\b",
+    re.I,
+)
+
 _CURRENCIES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bCHF\b|\bFr\.|\bfrs\b", re.I), "CHF"),
     (re.compile(r"€|\bEUR\b|\beuros?\b", re.I), "EUR"),
@@ -168,15 +177,23 @@ _CURRENCIES: tuple[tuple[re.Pattern[str], str], ...] = (
 )
 
 
-def parse_salary(value: str | None) -> tuple[float | None, float | None, str | None]:
+def parse_salary(
+    value: str | None, currency_hint: str | None = None
+) -> tuple[float | None, float | None, str | None]:
     """Lit une mention de salaire en texte libre.
 
-    Renvoie ``(minimum, maximum, devise)``. Reconnait notamment
-    ``"36 - 42 k€ brut annuel"`` (APEC), ``"CHF 80'000 - 100'000"`` (Suisse) et
-    les montants uniques. Le suffixe ``k`` multiplie par mille.
+    Renvoie ``(minimum, maximum, devise)``. Reconnait ``"36 - 42 k€ brut annuel"``
+    (APEC), ``"CHF 80'000 - 100'000"`` (Suisse) et les montants uniques ; le
+    suffixe ``k`` multiplie par mille.
 
-    Les fourchettes annoncees en clair sont rares : la plupart des offres n'en
-    donnent pas. Renvoyer trois ``None`` est donc un resultat normal, pas une erreur.
+    **Une devise ou un mot-cle de remuneration est exige.** Sans ce garde-fou,
+    une phrase comme « poste ouvert en 2026 » produirait un salaire de 2026 :
+    n'importe quel nombre a quatre chiffres ressemble a un montant. Les modules
+    qui connaissent la devise par le contexte -- une API qui la donne dans un
+    champ voisin -- la passent via ``currency_hint``.
+
+    Renvoyer trois ``None`` est un resultat courant et normal : la plupart des
+    annonces ne chiffrent pas la remuneration.
     """
     if not value:
         return None, None, None
@@ -184,25 +201,31 @@ def parse_salary(value: str | None) -> tuple[float | None, float | None, str | N
     if not text:
         return None, None, None
 
-    currency = None
+    currency = currency_hint
     for pattern, code in _CURRENCIES:
         if pattern.search(text):
             currency = code
             break
 
+    has_keyword = bool(_SALARY_KEYWORDS.search(text))
+    if not currency and not has_keyword:
+        return None, None, None
+
     # Un « k » colle au nombre ou separe par un espace vaut multiplication par mille.
     multiplier = 1000.0 if re.search(r"\d\s*[kK]\b|\d\s*[kK][€$]", text) else 1.0
 
-    raw_numbers = re.findall(r"\d[\d\s.,'  ’]*", text)
-    amounts = []
-    for raw in raw_numbers:
+    amounts: list[float] = []
+    for raw in re.findall(r"\d[\d\s.,'\u202f\u00a0\u2019]*", text):
         number = _to_number(raw)
         if number is None:
             continue
+        # Une annee ecrite telle quelle -- quatre chiffres sans separateur, dans
+        # une plage plausible -- n'est pas un montant.
+        if multiplier == 1.0 and re.fullmatch(r"\d{4}", raw.strip()) and 1900 <= number <= 2100:
+            continue
         amounts.append(number * multiplier)
 
-    # On ecarte ce qui ne peut pas etre un salaire : annees, taux d'activite,
-    # nombres de postes. Le seuil bas evite de prendre « 2026 » ou « 100 % ».
+    # Sous mille, c'est un taux d'activite, un nombre de postes ou un numero.
     amounts = [a for a in amounts if a >= 1000]
     if not amounts:
         return None, None, currency
