@@ -9,6 +9,68 @@
 #   ref       branche ou tag (defaut : main)
 #   enabled   false pour livrer un module sans l'activer
 #   config    options passees au module
-#   note      raison d'une desactivation, affichee par la CLI
+#   note      raison d'une desactivation ou reserve connue, affichee par la CLI
 
-modules: []
+modules:
+
+  # --- collecte : interfaces JSON, sans authentification ------------------
+  - name: jobroom
+    repo: git+https://github.com/XavierBeheydt/jobs-scrape-mod-jobroom.git
+    enabled: true
+    note: "service public suisse (SECO), ~69 000 annonces geolocalisees"
+
+  - name: apec
+    repo: git+https://github.com/XavierBeheydt/jobs-scrape-mod-apec.git
+    enabled: true
+    note: "offres cadres France ; description limitee a un resume de 283 signes"
+
+  # --- collecte : HTML et sitemap ----------------------------------------
+  - name: approachpeople
+    repo: git+https://github.com/XavierBeheydt/jobs-scrape-mod-approachpeople.git
+    enabled: true
+    note: "sitemap ; les pages de recherche sont fermees par robots.txt"
+
+  - name: agencies-ge
+    repo: git+https://github.com/XavierBeheydt/jobs-scrape-mod-agencies-ge.git
+    enabled: true
+    note: "126 agences ge.ch declarees, 19 exposent un JobPosting exploitable"
+
+  # --- collecte : interface a cle simple, pas d'OAuth --------------------
+  - name: adzuna
+    repo: git+https://github.com/XavierBeheydt/jobs-scrape-mod-adzuna.git
+    enabled: true
+    note: "exige ADZUNA_APP_ID et ADZUNA_APP_KEY ; substitut fonctionnel d'Indeed"
+
+  # --- collecte : depots prives (CGU restrictives) -----------------------
+  # L'authentification SSH de gh est reutilisee ; rien a configurer.
+  - name: jobup
+    repo: git+ssh://git@github.com/XavierBeheydt/jobs-scrape-mod-jobup.git
+    enabled: true
+    note: "depot prive : CGU restrictives. Le robots.txt ferme /api/, on lit le HTML"
+
+  - name: indeed
+    repo: git+ssh://git@github.com/XavierBeheydt/jobs-scrape-mod-indeed.git
+    enabled: false
+    note: "desactive : 403 par pare-feu applicatif. Le projet ne contourne pas une protection"
+
+  # --- enrichissement -----------------------------------------------------
+  - name: keywords
+    repo: git+https://github.com/XavierBeheydt/jobs-scrape-mod-keywords.git
+    enabled: true
+    config:
+      backend: taxonomy      # taxonomy | yake | llm, ou une liste des trois
+    note: "211 competences multilingues fr/de/it/en ; deterministe et hors ligne"
+
+  # --- exploration --------------------------------------------------------
+  # Ces deux-la ne declarent pas de source ni d'enrichisseur : ce sont des
+  # applications autonomes qui consomment la couche de recherche du coeur.
+  # Elles figurent ici pour etre installees d'une seule commande.
+  - name: mcp
+    repo: git+https://github.com/XavierBeheydt/jobs-scrape-mcp.git
+    enabled: true
+    note: "serveur MCP : claude mcp add jobs-scrape -- uv run jobs-scrape-mcp"
+
+  - name: ui
+    repo: git+https://github.com/XavierBeheydt/jobs-scrape-ui.git
+    enabled: true
+    note: "interface web : uv run jobs-scrape-ui (http://127.0.0.1:8000)"
