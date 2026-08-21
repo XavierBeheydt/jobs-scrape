@@ -122,12 +122,31 @@ def _to_number(raw: str) -> float | None:
 
 
 def to_float(value: object) -> float | None:
-    """Extrait un nombre decimal d'une valeur quelconque."""
+    """Extrait un nombre decimal d'une valeur quelconque.
+
+    Une chaine deja ecrite en notation standard est lue telle quelle,
+    **avant** toute heuristique de separateurs. C'est indispensable pour les
+    valeurs venant d'API JSON : une latitude ``"47.405"`` vaut 47,405 degres,
+    et l'heuristique monetaire -- qui ne reconnait comme decimale qu'un
+    separateur suivi d'un ou deux chiffres -- la transformerait en 47 405.
+
+    Contrepartie assumee : ``"80.000"`` ecrit a la francaise pour 80 000 sera
+    lu 80,0. Les montants en texte libre passent par :func:`parse_salary`, qui
+    applique bien l'heuristique de milliers ; cette fonction-ci sert d'abord
+    aux nombres deja structures.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)):
         return float(value)
-    match = re.search(r"-?\d[\d\s.,'  ’]*", str(value))
+
+    text = str(value).strip()
+    try:
+        return float(text)
+    except ValueError:
+        pass
+
+    match = re.search(r"-?\d[\d\s.,'  ’]*", text)
     return _to_number(match.group(0)) if match else None
 
 

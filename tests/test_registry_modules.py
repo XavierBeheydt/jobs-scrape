@@ -6,10 +6,23 @@ import yaml
 from jobs_scrape import modules, registry
 
 
-def test_registre_vide_par_defaut():
-    """Aucun module installe en test : le coeur reste utilisable."""
-    assert registry.sources() == {}
-    assert registry.enrichers() == {}
+def test_le_registre_repond_quel_que_soit_l_environnement():
+    """Le coeur doit fonctionner avec zero module comme avec dix.
+
+    Ce test tournait initialement en supposant un environnement vide ; il
+    echouait des qu'un collecteur etait installe a cote, ce qui est pourtant le
+    cas normal a l'usage. On verifie donc le contrat, pas le contenu.
+    """
+    from jobs_scrape.source import EnricherMeta, SourceMeta
+
+    sources = registry.sources()
+    assert isinstance(sources, dict)
+    assert all(isinstance(meta, SourceMeta) for meta in sources.values())
+    assert all(name == meta.name for name, meta in sources.items())
+
+    enrichers = registry.enrichers()
+    assert isinstance(enrichers, dict)
+    assert all(isinstance(meta, EnricherMeta) for meta in enrichers.values())
 
 
 def test_erreur_de_source_inconnue_est_actionnable():
