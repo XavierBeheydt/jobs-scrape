@@ -74,10 +74,18 @@ def html_to_text(value: str | None) -> str | None:
 def to_iso_date(value: str | date | datetime | None) -> str | None:
     """Ramene une date a la forme ISO ``AAAA-MM-JJ``.
 
-    Accepte les formats ISO complets, les dates francaises ``JJ/MM/AAAA`` et les
-    horodatages avec fuseau. Le format francais est ambigu avec l'americain :
-    ``dayfirst=True`` tranche en faveur du francais, ce qui est le bon choix pour
-    des sources FR et CH.
+    L'ordre des tentatives est essentiel. On essaie **d'abord** la lecture
+    ISO 8601 stricte, avant toute interpretation heuristique.
+
+    La raison : ``dateutil`` avec ``dayfirst=True`` -- necessaire pour lire le
+    ``21/08/2026`` francais -- se trompe sur une date deja ISO des que le jour
+    et le mois sont tous deux inferieurs a 13. ``"2026-07-02"`` devenait ainsi
+    le 7 fevrier au lieu du 2 juillet. Le defaut etait silencieux et touchait
+    environ un tiers des dates, sur toutes les sources renvoyant de l'ISO --
+    c'est-a-dire la plupart des API.
+
+    L'heuristique ``dayfirst`` ne sert donc que de repli, pour les formats
+    reellement ambigus ecrits a la francaise.
     """
     if value is None:
         return None
@@ -89,6 +97,18 @@ def to_iso_date(value: str | date | datetime | None) -> str | None:
     text = clean_text(value)
     if not text:
         return None
+
+    # 1. ISO 8601, sans aucune interpretation. Couvre "2026-07-02",
+    #    "2026-07-02T10:29:35" et les variantes avec fuseau.
+    candidate = text.replace("Z", "+00:00") if text.endswith("Z") else text
+    for parser in (datetime.fromisoformat, date.fromisoformat):
+        try:
+            parsed = parser(candidate)
+        except (ValueError, TypeError):
+            continue
+        return parsed.date().isoformat() if isinstance(parsed, datetime) else parsed.isoformat()
+
+    # 2. Repli heuristique : formats libres, jour en premier (usage FR/CH).
     try:
         return date_parser.parse(text, dayfirst=True).date().isoformat()
     except (ValueError, OverflowError, TypeError):

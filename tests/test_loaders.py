@@ -89,3 +89,21 @@ def test_to_float_lit_les_coordonnees_sans_les_deformer(raw, expected):
     from jobs_scrape.loaders import to_float
 
     assert to_float(raw) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("raw,expected", [
+    # ISO : lu tel quel, jamais reinterprete
+    ("2026-07-02", "2026-07-02"),   # regression : devenait 2026-02-07
+    ("2026-02-07", "2026-02-07"),
+    ("2026-01-12", "2026-01-12"),
+    ("2026-12-01", "2026-12-01"),
+    ("2026-07-02T10:29:35", "2026-07-02"),
+    ("2026-07-02T10:29:35+02:00", "2026-07-02"),
+    ("2026-07-02T10:29:35Z", "2026-07-02"),
+    # formats libres : l'heuristique « jour en premier » s'applique
+    ("02/07/2026", "2026-07-02"),
+    ("2 juillet 2026", None),       # mois en toutes lettres francais : non gere
+])
+def test_to_iso_date_ne_reinterprete_pas_l_iso(raw, expected):
+    """dayfirst=True inversait jour et mois sur les dates deja ISO."""
+    assert to_iso_date(raw) == expected
